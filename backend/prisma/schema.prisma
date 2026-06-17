@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String        @id @default(cuid())
+  email     String        @unique
+  name      String?
+  supabaseId String?      @unique
+  createdAt DateTime      @default(now())
+  scans     WebsiteScan[]
+}
+
+model WebsiteScan {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url           String
+  normalizedUrl String
+  status        String          // queued | running | done | failed
+  error         String?
+  contentHash   String?
+  overallScore  Int?
+  band          String?
+  scanDate      DateTime        @default(now())
+  progress      Json?
+  categories    CategoryScore[]
+  issues        Issue[]
+  report        Report?
+
+  @@index([userId, scanDate(sort: Desc)])
+  @@index([normalizedUrl])
+}
+
+model CategoryScore {
+  id         String      @id @default(cuid())
+  scanId     String
+  scan       WebsiteScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  category   String
+  score      Int
+  maxScore   Int
+  rawSignals Json
+
+  @@index([scanId])
+}
+
+model Issue {
+  id             String      @id @default(cuid())
+  scanId         String
+  scan           WebsiteScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  category       String
+  name           String
+  description    String
+  impact         String
+  priority       String      // high | medium | low
+  isQuickWin     Boolean     @default(false)
+  problem        String?
+  reason         String?
+  solution       String?
+  expectedImpact String?
+  effort         String?
+
+  @@index([scanId])
+}
+
+model Report {
+  id         String      @id @default(cuid())
+  scanId     String      @unique
+  scan       WebsiteScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  pdfUrl     String?
+  shareToken String      @unique
+  createdAt  DateTime    @default(now())
+}
+
+model ScanCache {
+  contentHash String   @id
+  result      Json
+  cachedAt    DateTime @default(now())
+}

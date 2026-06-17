@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0C0E13;
+  --surface: #14171F;
+  --surface-2: #1C212B;
+  --line: #2A303C;
+  --text: #F0F1F5;
+  --text-dim: #98A1B2;
+  --text-faint: #5B6472;
+  --brand: #3DD4C0;
+  --brand-deep: #1FA893;
+  --sig-critical: #FF6B5B;
+  --sig-caution: #FFB454;
+  --sig-good: #8FE36B;
+  --sig-ready: #3DD4C0;
+}
+
+@layer base {
+  html {
+    @apply bg-bg text-text font-body antialiased;
+  }
+
+  body {
+    @apply min-h-screen;
+    background-image: radial-gradient(circle at 1px 1px, rgba(61, 212, 192, 0.04) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
