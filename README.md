@@ -1,4 +1,4 @@
-# AI Money Scoreboard
+# AI Money Scorecard
 
 Audit any website for how well AI search engines (ChatGPT Search, Google AI Overviews, Perplexity, Microsoft Copilot, Gemini) can read, trust, and cite it.
 

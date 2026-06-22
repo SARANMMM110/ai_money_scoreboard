@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import { scrubSecrets } from '../vault/keyVault.js';
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
-  console.error('[Error]', err.message, err.stack);
+  const safeMessage = scrubSecrets(err.message);
+  console.error('[Error]', safeMessage);
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message: process.env.NODE_ENV === 'development' ? safeMessage : undefined,
   });
 }
 

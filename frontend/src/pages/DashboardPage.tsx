@@ -1,93 +1,170 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { AppShell } from '../components/AppShell';
-import { ScanCard } from '../components/ScanCard';
-import { ScoreHistoryChart } from '../components/ScoreHistoryChart';
+import { ScanRow } from '../components/ScanRow';
+import { MiniGauge } from '../components/MiniGauge';
+import { ScoreTrends } from '../components/ModeScoreTrends';
+import { IconBarChart, IconTarget, IconShield, IconPlus } from '../components/icons';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import { getScoreColor } from '../types';
 import type { ScanSummary } from '../types';
 
+function displayName(user: { name: string | null; email: string } | null) {
+  if (!user) return 'there';
+  if (user.name) return user.name.split(' ')[0]!;
+  return user.email.split('@')[0]!;
+}
+
 export function DashboardPage() {
   const [scans, setScans] = useState<ScanSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  const load = () => {
+  useEffect(() => {
     api.scans.list().then((res) => setScans(res.scans)).finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
-
-  const handleRescan = async (id: string) => {
-    const { scanId } = await api.scans.rescan(id);
-    navigate(`/app/scan/${scanId}`);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this scan?')) return;
-    await api.scans.delete(id);
-    load();
-  };
-
-  const latestScore = scans.find((s) => s.status === 'done' && s.overallScore != null);
+  const latest = scans.find((s) => s.status === 'done' && s.overallScore != null);
+  const bandColor = latest?.overallScore != null ? getScoreColor(latest.overallScore) : 'var(--faint)';
+  const bandSubtitle =
+    latest?.overallScore != null && latest.overallScore < 40
+      ? 'Needs attention'
+      : latest?.overallScore != null && latest.overallScore < 60
+        ? 'Room to improve'
+        : latest?.band ?? 'No scans yet';
 
   return (
     <AppShell>
-      <div className="p-8 max-w-5xl">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="font-display text-2xl font-semibold">Dashboard</h1>
-            <p className="text-text-dim text-sm mt-1">Your AI search readiness at a glance</p>
-          </div>
-          <Link
-            to="/app/scan"
-            className="bg-brand text-bg text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-brand-deep transition-colors"
-          >
-            New scan
-          </Link>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-4 mb-8">
-          <StatCard label="Total scans" value={String(scans.length)} />
-          <StatCard
-            label="Latest score"
-            value={latestScore?.overallScore != null ? String(latestScore.overallScore) : '—'}
-            color={latestScore?.overallScore != null ? getScoreColor(latestScore.overallScore) : undefined}
-          />
-          <StatCard label="Latest band" value={latestScore?.band ?? '—'} />
-        </div>
-
-        <ScoreHistoryChart scans={scans} />
-
-        <h2 className="text-sm font-medium text-text-dim mb-4">Recent scans</h2>
-        {loading ? (
-          <p className="text-text-faint text-sm">Loading scans…</p>
-        ) : scans.length === 0 ? (
-          <div className="bg-surface border border-line border-dashed rounded-xl p-12 text-center">
-            <p className="text-text-dim mb-4">No scans yet. Drop in a URL to see how AI reads your site.</p>
-            <Link to="/app/scan" className="text-brand hover:text-brand-deep text-sm font-medium">
-              Run your first scan →
+      <div className="w-full min-h-full bg-header-wave">
+        <div className="w-full px-8 pt-8 pb-10">
+          <div className="flex items-start justify-between gap-4 mb-8">
+            <div>
+              <p className="text-sm text-faint mb-1">Welcome back, {displayName(user)}! 👋</p>
+              <h1 className="font-display text-3xl font-bold text-ink tracking-tight">Dashboard</h1>
+              <p className="text-dim text-sm mt-1">Your AI search readiness at a glance</p>
+            </div>
+            <Link
+              to="/app/scan"
+              className="inline-flex items-center gap-2 bg-brand-gradient text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-[0_8px_24px_rgba(14,169,141,0.35)] hover:opacity-90 transition-opacity shrink-0"
+            >
+              <IconPlus size={16} />
+              New scan
             </Link>
           </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {scans.slice(0, 6).map((scan) => (
-              <ScanCard key={scan.id} scan={scan} onRescan={handleRescan} onDelete={handleDelete} />
-            ))}
+
+          <div className="grid sm:grid-cols-3 gap-5 mb-10">
+            <StatCard
+              icon={<IconBarChart className="text-brand" />}
+              iconBg="bg-brand-soft"
+              label="Total scans"
+              sublabel="All time scans"
+              value={String(scans.length)}
+              footer={<ScoreTrends scans={scans} />}
+            />
+
+            <StatCard
+              icon={<IconTarget className="text-critical" />}
+              iconBg="bg-critical-soft"
+              label="Latest score"
+              sublabel="Out of 100"
+              value={latest?.overallScore != null ? String(latest.overallScore) : '—'}
+              valueColor={latest?.overallScore != null ? getScoreColor(latest.overallScore) : undefined}
+              trailing={latest?.overallScore != null ? <MiniGauge score={latest.overallScore} /> : undefined}
+            />
+
+            <StatCard
+              icon={<IconShield className="text-purple" />}
+              iconBg="bg-purple-soft"
+              label="Latest band"
+              sublabel={bandSubtitle}
+              value={latest?.band ?? '—'}
+              valueColor={bandColor}
+              decorative={
+                latest?.overallScore != null && latest.overallScore < 40 ? (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-[0.07] pointer-events-none">
+                    <IconTarget size={80} className="text-critical" />
+                  </div>
+                ) : undefined
+              }
+            />
           </div>
-        )}
+
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold text-ink">Recent scans</h2>
+            <Link to="/app/history" className="text-sm text-brand font-medium hover:text-brand-deep transition-colors">
+              View all history →
+            </Link>
+          </div>
+
+          {loading ? (
+            <p className="text-faint text-sm">Loading scans…</p>
+          ) : scans.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-surface border border-line border-dashed rounded-2xl p-14 text-center shadow-card"
+            >
+              <p className="text-dim mb-4">No scans yet. Drop in a URL to see how AI reads your site.</p>
+              <Link to="/app/scan" className="inline-flex items-center gap-2 text-brand hover:text-brand-deep text-sm font-semibold">
+                <IconPlus size={14} />
+                Run your first scan
+              </Link>
+            </motion.div>
+          ) : (
+            <div className="space-y-3">
+              {scans.slice(0, 6).map((scan, i) => (
+                <ScanRow key={scan.id} scan={scan} index={i} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatCard({
+  icon,
+  iconBg,
+  label,
+  sublabel,
+  value,
+  valueColor,
+  trailing,
+  footer,
+  decorative,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  label: string;
+  sublabel: string;
+  value: string;
+  valueColor?: string;
+  trailing?: React.ReactNode;
+  footer?: React.ReactNode;
+  decorative?: React.ReactNode;
+}) {
   return (
-    <div className="bg-surface border border-line rounded-xl p-5">
-      <p className="text-xs text-text-faint mb-1">{label}</p>
-      <p className="font-mono text-2xl font-bold tabular-nums" style={{ color: color ?? 'var(--text)' }}>
-        {value}
-      </p>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative bg-surface border border-line rounded-2xl p-5 shadow-card overflow-hidden"
+    >
+      {decorative}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${iconBg}`}>{icon}</div>
+          <p className="font-display text-3xl font-bold tabular-nums" style={{ color: valueColor ?? 'var(--ink)' }}>
+            {value}
+          </p>
+          <p className="text-sm font-medium text-ink mt-1">{label}</p>
+          <p className="text-xs text-faint">{sublabel}</p>
+        </div>
+        {trailing}
+      </div>
+      {footer}
+    </motion.div>
   );
 }

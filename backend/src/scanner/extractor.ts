@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import type { CrawlResult } from './types.js';
+import type { DeepEnrichment } from './enrich-signals.js';
 import { stripHtmlToText, countWords } from './utils.js';
 
 export interface ExtractedSignals {
@@ -27,6 +28,10 @@ export interface ExtractedSignals {
   contentToCodeRatio: number;
   usedPlaywright: boolean;
   allPagesHtml: string[];
+  /** Present after Deep deterministic enrichment — refines analyzer inputs. */
+  deep?: DeepEnrichment;
+  /** estimate = homepage-only (Flash); verified = full-site (Deep). */
+  scope: 'estimate' | 'verified';
 }
 
 function extractJsonLd($: cheerio.CheerioAPI): { blocks: unknown[]; types: string[] } {
@@ -70,7 +75,8 @@ function extractMainContent($: cheerio.CheerioAPI): string {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-export function extractSignals(crawl: CrawlResult): ExtractedSignals {
+export function extractSignals(crawl: CrawlResult, scope: 'estimate' | 'verified' = 'verified'): ExtractedSignals {
+  const homepageOnly = scope === 'estimate';
   const $ = cheerio.load(crawl.mainPage.html);
   const { blocks, types } = extractJsonLd($);
 
@@ -111,7 +117,9 @@ export function extractSignals(crawl: CrawlResult): ExtractedSignals {
   const textLength = staticBodyText.length;
   const contentToCodeRatio = htmlLength > 0 ? textLength / htmlLength : 0;
 
-  const allText = (crawl.mainPage.html + crawl.internalPages.map((p) => p.html).join(' ')).toLowerCase();
+  const allText = homepageOnly
+    ? crawl.mainPage.html.toLowerCase()
+    : (crawl.mainPage.html + crawl.internalPages.map((p) => p.html).join(' ')).toLowerCase();
 
   const socialPatterns = ['facebook.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 'instagram.com'];
   const reviewPatterns = ['trustpilot.com', 'g2.com', 'google.com/maps', 'yelp.com'];
@@ -163,7 +171,10 @@ export function extractSignals(crawl: CrawlResult): ExtractedSignals {
     staticBodyText,
     contentToCodeRatio,
     usedPlaywright: crawl.mainPage.usedPlaywright,
-    allPagesHtml: [crawl.mainPage.html, ...crawl.internalPages.map((p) => p.html)],
+    allPagesHtml: homepageOnly
+      ? [crawl.mainPage.html]
+      : [crawl.mainPage.html, ...crawl.internalPages.map((p) => p.html)],
+    scope,
   };
 }
 

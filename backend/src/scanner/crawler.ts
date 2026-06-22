@@ -6,7 +6,14 @@ import { normalizeUrl, getOrigin, resolveUrl, isSameOrigin, hashContent } from '
 
 const FETCH_TIMEOUT = 15_000;
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_INTERNAL_PAGES = 5;
+const SCAN_INTERNAL_PAGES = 20;
+/** @deprecated use SCAN_INTERNAL_PAGES */
+const FLASH_INTERNAL_PAGES = SCAN_INTERNAL_PAGES;
+const DEEP_INTERNAL_PAGES = SCAN_INTERNAL_PAGES;
+
+export interface CrawlOptions {
+  maxInternalPages?: number;
+}
 
 interface FetchOptions {
   timeout?: number;
@@ -20,7 +27,7 @@ async function fetchWithTimeout(url: string, timeout = FETCH_TIMEOUT): Promise<R
     const response = await undiciFetch(url, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'AI-Money-Scoreboard/1.0 (+https://aimoneyscoreboard.com/bot)',
+        'User-Agent': 'AI-Money-Scorecard/1.0 (+https://aimoneyscoreboard.com/bot)',
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
       redirect: 'follow',
@@ -101,7 +108,7 @@ function parseRobotsDisallow(robotsTxt: string | null, path: string): boolean {
   return false;
 }
 
-function extractInternalLinks(html: string, baseUrl: string): string[] {
+function extractInternalLinks(html: string, baseUrl: string, limit: number): string[] {
   const $ = cheerio.load(html);
   const links = new Set<string>();
   $('a[href]').each((_, el) => {
@@ -112,10 +119,11 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
       links.add(resolved.replace(/\/$/, '') || resolved);
     }
   });
-  return Array.from(links).slice(0, MAX_INTERNAL_PAGES + 10);
+  return Array.from(links).slice(0, limit + 10);
 }
 
-export async function crawlWebsite(inputUrl: string): Promise<CrawlResult> {
+export async function crawlWebsite(inputUrl: string, options: CrawlOptions = {}): Promise<CrawlResult> {
+  const maxInternal = options.maxInternalPages ?? FLASH_INTERNAL_PAGES;
   const { normalized, valid, error } = normalizeUrl(inputUrl);
   if (!valid) throw new Error(error ?? 'Invalid URL');
 
@@ -146,9 +154,9 @@ export async function crawlWebsite(inputUrl: string): Promise<CrawlResult> {
     fetchTextResource(`${origin}/llms.txt`),
   ]);
 
-  const internalLinks = extractInternalLinks(mainPage.html, normalized)
+  const internalLinks = extractInternalLinks(mainPage.html, normalized, maxInternal)
     .filter((link) => link !== normalized.replace(/\/$/, ''))
-    .slice(0, MAX_INTERNAL_PAGES);
+    .slice(0, maxInternal);
 
   const internalPages: CrawlPage[] = [];
   for (const link of internalLinks) {
@@ -183,6 +191,8 @@ export async function crawlWebsite(inputUrl: string): Promise<CrawlResult> {
     errors,
   };
 }
+
+export { SCAN_INTERNAL_PAGES, FLASH_INTERNAL_PAGES, DEEP_INTERNAL_PAGES };
 
 export async function checkUrlReachable(inputUrl: string): Promise<{ reachable: boolean; error?: string }> {
   const { valid, normalized, error } = normalizeUrl(inputUrl);

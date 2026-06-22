@@ -1,11 +1,23 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
+import { PRODUCT_NAME } from '../components/BrandLogo';
+import {
+  AuthCardLayout,
+  AuthNeoInput,
+  AuthPasswordInput,
+  AuthGradientButton,
+  AuthCreateLink,
+  AuthSignInLink,
+  IconMail,
+  IconUser,
+} from '../components/AuthCardLayout';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -13,12 +25,19 @@ export function LoginPage() {
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/app';
 
+  useEffect(() => {
+    const saved = localStorage.getItem('remember_email');
+    if (saved) setEmail(saved);
+  }, []);
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       await login(email, password);
+      if (remember) localStorage.setItem('remember_email', email);
+      else localStorage.removeItem('remember_email');
       navigate(from);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -28,25 +47,56 @@ export function LoginPage() {
   };
 
   return (
-    <AuthLayout title="Sign in" subtitle="Access your scan history and reports">
+    <AuthCardLayout
+      greeting="Hello!"
+      subtitle="Sign in to your account"
+      welcomeTitle="Welcome Back!"
+      welcomeText={`Sign in to ${PRODUCT_NAME} and see how AI search engines read your site — with scores, issues, and paste-ready fixes waiting for you.`}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="text-sm text-sig-critical bg-sig-critical/10 border border-sig-critical/20 rounded-lg px-4 py-3">{error}</div>}
-        <Field label="Email" type="email" value={email} onChange={setEmail} required />
-        <Field label="Password" type="password" value={password} onChange={setPassword} required />
-        <div className="text-right">
-          <Link to="/forgot-password" className="text-xs text-brand hover:text-brand-deep">Forgot password?</Link>
+        {error && (
+          <div className="text-sm text-critical bg-critical-soft border border-critical/20 rounded-xl px-4 py-3">
+            {error}
+          </div>
+        )}
+
+        <AuthNeoInput
+          icon={<IconMail size={18} />}
+          type="email"
+          placeholder="E-mail"
+          value={email}
+          onChange={setEmail}
+          required
+        />
+
+        <AuthPasswordInput value={password} onChange={setPassword} required />
+
+        <div className="flex items-center justify-between text-xs pt-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-dim">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="w-4 h-4 rounded border-[#ddd6fe] focus:ring-[#6c5ce7]/30"
+              style={{ accentColor: '#6c5ce7' }}
+            />
+            Remember me
+          </label>
+          <Link to="/forgot-password" className="text-[#6c5ce7] hover:text-[#5b4cdb] hover:underline transition-colors">
+            Forgot password?
+          </Link>
         </div>
-        <button type="submit" disabled={loading} className="w-full bg-brand text-bg font-semibold py-3 rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50">
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+
+        <div className="pt-3">
+          <AuthGradientButton loading={loading}>
+            {loading ? 'Signing in…' : 'Sign In'}
+          </AuthGradientButton>
+        </div>
       </form>
-      <p className="text-sm text-text-dim text-center mt-6">
-        No account? <Link to="/register" className="text-brand hover:text-brand-deep">Register</Link>
-      </p>
-      <p className="text-xs text-text-faint text-center mt-4">
-        Demo: demo@aimoneyscoreboard.com (any password in dev mode)
-      </p>
-    </AuthLayout>
+
+      <AuthCreateLink to="/register" />
+
+    </AuthCardLayout>
   );
 }
 
@@ -74,20 +124,29 @@ export function RegisterPage() {
   };
 
   return (
-    <AuthLayout title="Create account" subtitle="Start auditing your site for AI search readiness">
+    <AuthCardLayout
+      greeting="Hello!"
+      subtitle="Create your account"
+      welcomeTitle="Get Started"
+      welcomeText={`Join ${PRODUCT_NAME} and run your first AI search readiness scan in minutes. Know exactly what to fix so ChatGPT, Perplexity, and Google AI can cite your content.`}
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="text-sm text-sig-critical bg-sig-critical/10 border border-sig-critical/20 rounded-lg px-4 py-3">{error}</div>}
-        <Field label="Name" value={name} onChange={setName} />
-        <Field label="Email" type="email" value={email} onChange={setEmail} required />
-        <Field label="Password" type="password" value={password} onChange={setPassword} required minLength={6} />
-        <button type="submit" disabled={loading} className="w-full bg-brand text-bg font-semibold py-3 rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50">
-          {loading ? 'Creating account…' : 'Create account'}
-        </button>
+        {error && (
+          <div className="text-sm text-critical bg-critical-soft border border-critical/20 rounded-xl px-4 py-3">
+            {error}
+          </div>
+        )}
+        <AuthNeoInput icon={<IconUser size={18} />} placeholder="Name" value={name} onChange={setName} />
+        <AuthNeoInput icon={<IconMail size={18} />} type="email" placeholder="E-mail" value={email} onChange={setEmail} required />
+        <AuthPasswordInput value={password} onChange={setPassword} required minLength={6} />
+        <div className="pt-3">
+          <AuthGradientButton loading={loading}>
+            {loading ? 'Creating…' : 'Create Account'}
+          </AuthGradientButton>
+        </div>
       </form>
-      <p className="text-sm text-text-dim text-center mt-6">
-        Already have an account? <Link to="/login" className="text-brand hover:text-brand-deep">Sign in</Link>
-      </p>
-    </AuthLayout>
+      <AuthSignInLink to="/login" />
+    </AuthCardLayout>
   );
 }
 
@@ -113,65 +172,27 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <AuthLayout title="Reset password" subtitle="We'll send you a reset link">
+    <AuthCardLayout
+      greeting="Hello!"
+      subtitle="Reset your password"
+      welcomeTitle="Forgot Password?"
+      welcomeText="Enter your email and we'll send you a link to reset your password and get back into your account."
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <div className="text-sm text-sig-critical bg-sig-critical/10 rounded-lg px-4 py-3">{error}</div>}
-        {message && <div className="text-sm text-brand bg-brand/10 rounded-lg px-4 py-3">{message}</div>}
-        <Field label="Email" type="email" value={email} onChange={setEmail} required />
-        <button type="submit" disabled={loading} className="w-full bg-brand text-bg font-semibold py-3 rounded-lg hover:bg-brand-deep transition-colors disabled:opacity-50">
-          {loading ? 'Sending…' : 'Send reset link'}
-        </button>
-      </form>
-      <p className="text-sm text-text-dim text-center mt-6">
-        <Link to="/login" className="text-brand hover:text-brand-deep">Back to sign in</Link>
-      </p>
-    </AuthLayout>
-  );
-}
-
-function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <Link to="/" className="font-display text-xl font-semibold tracking-tight block text-center mb-8">
-          AI Money<span className="text-brand">.</span>
-        </Link>
-        <div className="bg-surface border border-line rounded-2xl p-8 shadow-panel">
-          <h1 className="font-display text-2xl font-semibold mb-1">{title}</h1>
-          <p className="text-text-dim text-sm mb-6">{subtitle}</p>
-          {children}
+        {error && (
+          <div className="text-sm text-critical bg-critical-soft rounded-xl px-4 py-3">{error}</div>
+        )}
+        {message && (
+          <div className="text-sm rounded-xl px-4 py-3 bg-[#ede9fe] text-[#5b2d9a]">{message}</div>
+        )}
+        <AuthNeoInput icon={<IconMail size={18} />} type="email" placeholder="E-mail" value={email} onChange={setEmail} required />
+        <div className="pt-3">
+          <AuthGradientButton loading={loading}>
+            {loading ? 'Sending…' : 'Send Reset Link'}
+          </AuthGradientButton>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  type = 'text',
-  value,
-  onChange,
-  required,
-  minLength,
-}: {
-  label: string;
-  type?: string;
-  value: string;
-  onChange: (v: string) => void;
-  required?: boolean;
-  minLength?: number;
-}) {
-  return (
-    <div>
-      <label className="block text-xs text-text-dim mb-1.5">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        required={required}
-        minLength={minLength}
-        className="w-full bg-surface-2 border border-line rounded-lg px-4 py-2.5 text-sm text-text placeholder:text-text-faint focus:border-brand transition-colors"
-      />
-    </div>
+      </form>
+      <AuthSignInLink to="/login" />
+    </AuthCardLayout>
   );
 }

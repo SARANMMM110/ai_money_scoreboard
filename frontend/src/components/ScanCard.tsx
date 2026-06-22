@@ -16,7 +16,7 @@ export function ScanCard({ scan, onRescan, onDelete, selectable, selected, onSel
 
   return (
     <div
-      className={`group bg-surface border border-line rounded-xl p-5 hover:border-brand/30 hover:shadow-panel transition-all ${
+      className={`group bg-surface border border-line rounded-card p-5 hover:border-brand/30 hover:shadow-panel hover:-translate-y-0.5 transition-all shadow-card ${
         selected ? 'ring-2 ring-brand' : ''
       } ${selectable ? 'cursor-pointer' : ''}`}
       onClick={() => selectable && onSelect?.(scan.id)}

@@ -6,7 +6,8 @@ import { LoginPage, RegisterPage, ForgotPasswordPage } from './pages/AuthPages';
 import { DashboardPage } from './pages/DashboardPage';
 import { NewScanPage, ScanProgressPage } from './pages/ScanPage';
 import { ResultsPage, ReportViewPage } from './pages/ResultsPage';
-import { HistoryPage, SettingsPage } from './pages/HistoryPage';
+import { HistoryPage } from './pages/HistoryPage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export default function App() {
   return (

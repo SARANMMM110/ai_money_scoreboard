@@ -12,14 +12,19 @@ model User {
   email     String        @unique
   name      String?
   supabaseId String?      @unique
+  plan      String        @default("free")
   createdAt DateTime      @default(now())
   scans     WebsiteScan[]
+  brands    Brand[]
+  apiKeys   ApiKey[]
 }
 
 model WebsiteScan {
   id            String          @id @default(cuid())
   userId        String
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId       String?
+  brand         Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
   url           String
   normalizedUrl String
   status        String          // queued | running | done | failed
@@ -27,6 +32,15 @@ model WebsiteScan {
   contentHash   String?
   overallScore  Int?
   band          String?
+  scanMode        String          @default("flash")
+  readinessDepth  String?         // estimate | verified
+  visibilityScore Int?            // deep measured layer only
+  skippedStages   Json?
+  deepStatus      String?
+  deepProgress    Json?
+  deepVisibility  Json?
+  deepAudit       Json?
+  deepError       String?
   scanDate      DateTime        @default(now())
   progress      Json?
   categories    CategoryScore[]
@@ -35,6 +49,111 @@ model WebsiteScan {
 
   @@index([userId, scanDate(sort: Desc)])
   @@index([normalizedUrl])
+  @@index([brandId])
+}
+
+model Brand {
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  aliases        Json                 @default("[]")
+  domain         String?
+  category       String?
+  description    String?
+  enabledEngines Json                 @default("[\"perplexity\"]")
+  competitors    Competitor[]
+  prompts        Prompt[]
+  runs           VisibilityRun[]
+  schedules      VisibilitySchedule[]
+  scans          WebsiteScan[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId])
+}
+
+model Competitor {
+  id      String @id @default(cuid())
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name    String
+  aliases Json   @default("[]")
+  domain  String?
+
+  @@index([brandId])
+}
+
+model Prompt {
+  id      String               @id @default(cuid())
+  brandId String
+  brand   Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  text    String
+  tag     String
+  enabled Boolean              @default(true)
+  results PromptEngineResult[]
+
+  @@index([brandId])
+}
+
+model VisibilityRun {
+  id                 String               @id @default(cuid())
+  brandId            String
+  brand              Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  startedAt          DateTime             @default(now())
+  completedAt        DateTime?
+  status             String
+  error              String?
+  visibilityScore    Float?
+  citationRate       Float?
+  shareOfVoice       Float?
+  sentimentMix       Json?
+  engineScores       Json?
+  citedDomains       Json?
+  gapRecommendations Json?
+  enginesUsed        Json?
+  promptCount        Int?
+  estimatedCost      Float?
+  actualCost         Float?
+  results            PromptEngineResult[]
+
+  @@index([brandId, startedAt(sort: Desc)])
+}
+
+model PromptEngineResult {
+  id                  String        @id @default(cuid())
+  runId               String
+  run                 VisibilityRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  promptId            String
+  prompt              Prompt        @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  engine              String
+  mentioned           Boolean       @default(false)
+  cited               Boolean       @default(false)
+  prominence          Int?
+  sentiment           String?
+  sources             Json          @default("[]")
+  answerText          String        @default("")
+  competitorMentions  Json?
+  hallucinationFlags  Json?
+  raw                 Json?
+
+  @@unique([runId, promptId, engine])
+  @@index([runId])
+}
+
+model VisibilitySchedule {
+  id              String    @id @default(cuid())
+  brandId         String
+  brand           Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  frequency       String
+  enabled         Boolean   @default(true)
+  alertThreshold  Float?
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([brandId])
+  @@index([enabled, nextRunAt])
 }
 
 model CategoryScore {
@@ -53,17 +172,17 @@ model Issue {
   id             String      @id @default(cuid())
   scanId         String
   scan           WebsiteScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  issueId        String
   category       String
   name           String
   description    String
-  impact         String
   priority       String      // high | medium | low
   isQuickWin     Boolean     @default(false)
-  problem        String?
-  reason         String?
-  solution       String?
-  expectedImpact String?
-  effort         String?
+  whyItMatters   String
+  steps          Json        // string[]
+  code           Json?       // { lang, body }
+  expectedImpact String
+  effort         String
 
   @@index([scanId])
 }
@@ -81,4 +200,21 @@ model ScanCache {
   contentHash String   @id
   result      Json
   cachedAt    DateTime @default(now())
+}
+
+model ApiKey {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String
+  ciphertext      String
+  iv              String
+  authTag         String
+  last4           String
+  valid           Boolean   @default(false)
+  lastValidatedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, provider])
+  @@index([userId])
 }

@@ -69,7 +69,7 @@ export function ReadinessGauge({
 
   const isComplete = mode === 'complete';
   const isScanning = mode === 'scanning';
-  const displayScore = useCountUp(score, 900, isComplete);
+  const displayScore = useCountUp(score, 1100, isComplete);
   const fillColor = isComplete ? getScoreColor(score) : 'var(--brand)';
 
   const scorePct = isComplete ? score : 0;
@@ -96,8 +96,6 @@ export function ReadinessGauge({
           stroke="var(--line)"
           strokeWidth={strokeW}
         />
-
-        {/* Score fill (complete) */}
         {isComplete && fillAngle > 0 && (
           <motion.path
             d={describeArc(cx, cy, ringR, 0, fillAngle)}

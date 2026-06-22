@@ -30,18 +30,25 @@ export interface CrawlResult {
   errors: string[];
 }
 
+export interface RawIssue {
+  issueId: string;
+  category: CategoryKey;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
 export interface DetectedIssue {
+  issueId: string;
   category: CategoryKey;
   name: string;
   description: string;
-  impact: string;
   priority: 'high' | 'medium' | 'low';
   isQuickWin: boolean;
-  problem?: string;
-  reason?: string;
-  solution?: string;
-  expectedImpact?: string;
-  effort?: string;
+  whyItMatters: string;
+  steps: string[];
+  code?: { lang: string; body: string };
+  expectedImpact: string;
+  effort: string;
 }
 
 export interface CategoryResult {
@@ -49,13 +56,13 @@ export interface CategoryResult {
   score: number;
   maxScore: number;
   rawSignals: Record<string, unknown>;
-  issues: DetectedIssue[];
+  issues: RawIssue[];
 }
 
 export interface ScanResult {
   overallScore: number;
   band: string;
-  categories: CategoryResult[];
+  categories: (Omit<CategoryResult, 'issues'> & { issues: DetectedIssue[] })[];
   issues: DetectedIssue[];
   contentHash: string;
 }
@@ -68,10 +75,10 @@ export function getScoreBand(score: number): string {
 }
 
 export function getBandColor(score: number): string {
-  if (score >= 80) return '#3DD4C0';
-  if (score >= 60) return '#8FE36B';
-  if (score >= 40) return '#FFB454';
-  return '#FF6B5B';
+  if (score >= 80) return '#0EA98D';
+  if (score >= 60) return '#3FA34D';
+  if (score >= 40) return '#D9820B';
+  return '#E04A4F';
 }
 
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { api, setAuthToken, clearAuthToken, getAuthToken } from '../lib/api';
+import { api, setAuthToken, setRefreshToken, clearAuthToken, getAuthToken } from '../lib/api';
 import type { User } from '../types';
 
 interface AuthContextValue {
@@ -31,13 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const { user, session } = await api.auth.login(email, password);
+    if (!session?.access_token) throw new Error('Login failed — no session returned');
     setAuthToken(session.access_token);
+    setRefreshToken(session.refresh_token);
     setUser(user);
   };
 
   const register = async (email: string, password: string, name?: string) => {
     const { user, session } = await api.auth.register(email, password, name);
+    if (!session?.access_token) throw new Error('Registration succeeded but no session — try signing in.');
     setAuthToken(session.access_token);
+    setRefreshToken(session.refresh_token);
     setUser(user);
   };
 

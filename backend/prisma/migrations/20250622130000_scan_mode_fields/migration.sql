@@ -1,0 +1,4 @@
+ALTER TABLE "WebsiteScan" ADD COLUMN IF NOT EXISTS "readinessDepth" TEXT;
+ALTER TABLE "WebsiteScan" ADD COLUMN IF NOT EXISTS "visibilityScore" INTEGER;
+ALTER TABLE "WebsiteScan" ADD COLUMN IF NOT EXISTS "skippedStages" JSONB;
+ALTER TABLE "WebsiteScan" ADD COLUMN IF NOT EXISTS "deepProgress" JSONB;

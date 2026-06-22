@@ -1,86 +1,194 @@
 import { Router } from 'express';
+
 import path from 'path';
+
 import fs from 'fs';
+
 import { prisma } from '../lib/prisma.js';
+
 import { config } from '../config.js';
+
+import { authMiddleware } from '../middleware/auth.js';
+
 import { CATEGORY_LABELS } from '../scanner/types.js';
+
 import { getBandColor } from '../scanner/types.js';
+
+
 
 const router = Router();
 
-router.get('/:id/download', async (req, res) => {
-  const report = await prisma.report.findFirst({
-    where: { scanId: req.params.id },
-    include: { scan: { select: { userId: true, url: true } } },
-  });
-  if (!report) return res.status(404).json({ error: 'Report not found' });
 
-  const pdfPath = path.resolve(config.storagePath, 'reports', `${req.params.id}.pdf`);
-  if (!fs.existsSync(pdfPath)) return res.status(404).json({ error: 'PDF file not found' });
 
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="ai-score-report-${report.scan.url.replace(/[^a-z0-9]/gi, '-')}.pdf"`);
-  fs.createReadStream(pdfPath).pipe(res);
-});
+/** Public shareable HTML report (token-based). */
 
 router.get('/r/:token', async (req, res) => {
+
   const report = await prisma.report.findUnique({
+
     where: { shareToken: req.params.token },
+
     include: {
+
       scan: {
+
         include: {
+
           categories: true,
+
           issues: true,
+
         },
+
       },
+
     },
+
   });
+
   if (!report) return res.status(404).json({ error: 'Report not found' });
 
+
+
   const scan = report.scan;
+
   const scoreColor = getBandColor(scan.overallScore ?? 0);
 
+
+
   res.send(`<!DOCTYPE html>
+
 <html lang="en"><head>
+
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI Money Score — ${scan.url}</title>
+
+<title>AI Money Score — ${escapeHtml(scan.url)}</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
 <style>
+
   :root { --bg:#0C0E13; --surface:#14171F; --line:#2A303C; --text:#F0F1F5; --text-dim:#98A1B2; --brand:#3DD4C0; }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body { font-family: Inter, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; max-width: 800px; margin: 0 auto; }
+
   h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+
   .url { color: var(--text-dim); font-size: 0.875rem; margin-bottom: 2rem; word-break: break-all; }
+
   .score-hero { text-align: center; padding: 2rem; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 2rem; }
+
   .score { font-family: 'JetBrains Mono', monospace; font-size: 4rem; font-weight: 700; color: ${scoreColor}; }
+
   .band { color: var(--text-dim); margin-top: 0.5rem; }
+
   .grid { display: grid; gap: 1rem; }
+
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+
   .card h3 { font-size: 0.875rem; color: var(--text-dim); margin-bottom: 0.25rem; }
+
   .card .val { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; }
+
   .issue { padding: 1rem; border-bottom: 1px solid var(--line); }
+
   .issue:last-child { border-bottom: none; }
+
   .priority-high { color: #FF6B5B; }
+
   .priority-medium { color: #FFB454; }
+
   .priority-low { color: #98A1B2; }
+
   @media print { body { background: white; color: black; } .score-hero, .card { border-color: #ccc; } }
+
 </style></head><body>
-  <h1>AI Money Scoreboard</h1>
-  <p class="url">${scan.url}</p>
+
+  <h1>AI Money Scorecard</h1>
+
+  <p class="url">${escapeHtml(scan.url)}</p>
+
   <div class="score-hero">
+
     <div class="score">${scan.overallScore ?? '—'}</div>
-    <div class="band">${scan.band ?? ''}</div>
+
+    <div class="band">${escapeHtml(scan.band ?? '')}</div>
+
   </div>
+
   <h2 style="margin-bottom:1rem;font-size:1.125rem">Category Scores</h2>
+
   <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));margin-bottom:2rem">
+
     ${scan.categories.map((c) => `<div class="card"><h3>${CATEGORY_LABELS[c.category as keyof typeof CATEGORY_LABELS]}</h3><div class="val">${c.score}/${c.maxScore}</div></div>`).join('')}
+
   </div>
+
   <h2 style="margin-bottom:1rem;font-size:1.125rem">Issues</h2>
+
   <div class="card">
-    ${scan.issues.map((i) => `<div class="issue"><strong class="priority-${i.priority}">${i.name}</strong><p style="margin-top:0.25rem;color:var(--text-dim);font-size:0.875rem">${i.problem ?? i.description}</p></div>`).join('')}
+
+    ${scan.issues.map((i) => `<div class="issue"><strong class="priority-${i.priority}">${escapeHtml(i.name)}</strong><p style="margin-top:0.25rem;color:var(--text-dim);font-size:0.875rem">${escapeHtml(i.description)}</p><p style="font-size:0.8rem;margin-top:0.5rem">${escapeHtml(i.whyItMatters)}</p></div>`).join('')}
+
   </div>
-  <p style="margin-top:2rem;text-align:center;color:var(--text-dim);font-size:0.75rem">Generated by AI Money Scoreboard</p>
+
+  <p style="margin-top:2rem;text-align:center;color:var(--text-dim);font-size:0.75rem">Generated by AI Money Scorecard</p>
+
 </body></html>`);
+
 });
 
+
+
+/** Authenticated PDF download — owner only. */
+
+router.get('/:id/download', authMiddleware, async (req, res) => {
+  const scanId = String(req.params.id);
+  const scan = await prisma.websiteScan.findFirst({
+    where: { id: scanId, userId: req.user!.id },
+    include: { report: true },
+  });
+
+  if (!scan?.report) return res.status(404).json({ error: 'Report not found' });
+
+
+
+  const pdfPath = path.resolve(config.storagePath, 'reports', `${scanId}.pdf`);
+
+  if (!fs.existsSync(pdfPath)) return res.status(404).json({ error: 'PDF file not found' });
+
+
+
+  const safeName = scan.url.replace(/[^a-z0-9]/gi, '-').slice(0, 80);
+
+  res.setHeader('Content-Type', 'application/pdf');
+
+  res.setHeader('Content-Disposition', `attachment; filename="ai-score-report-${safeName}.pdf"`);
+
+  fs.createReadStream(pdfPath).pipe(res);
+
+});
+
+
+
+function escapeHtml(s: string): string {
+
+  return s
+
+    .replace(/&/g, '&amp;')
+
+    .replace(/</g, '&lt;')
+
+    .replace(/>/g, '&gt;')
+
+    .replace(/"/g, '&quot;');
+
+}
+
+
+
 export default router;
+
+
