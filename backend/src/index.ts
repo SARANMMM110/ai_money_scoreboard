@@ -33,6 +33,20 @@ app.use('/api/brands', brandRoutes);
 app.use('/api/visibility', visibilityRoutes);
 app.use('/api/keys', keyRoutes);
 
+// Production: serve built frontend from the same origin (Render single-service deploy)
+if (config.nodeEnv === 'production') {
+  const frontendDist = path.resolve(__dirname, '../../frontend/dist');
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+        if (err) next(err);
+      });
+    });
+  }
+}
+
 app.use(notFound);
 app.use(errorHandler);
 
